@@ -1,2 +1,5 @@
-# Forward-ACK-in-ns-3
-Involves Implementation of Forward ACK built on the mechanism of Selective ACK (SACK) in ns-3.
+## Implementation of TCP Forward Acknowlegement (FACK) in ns-3
+
++ Contributors : Siddhartha Chowdhuri, Atul Singh, Aswin Manoj.
++ Instructor   : Mohit P. Tahiliani
++ Resources    :
