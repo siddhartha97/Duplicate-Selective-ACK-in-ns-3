@@ -5,7 +5,7 @@
 
 #### Resources    :
 
-+ RFC 3708 : Using TCP Duplicate Selective Acknowledgement (DSACKs) and  Stream Control Transmission Protocol (SCTP) Duplicate Transmission Sequence Numbers (TSNs) to Detect Spurious Retransmissions.
+ + RFC 2883 : [An Extension to the Selective Acknowledgement (SACK) Option for TCP](https://tools.ietf.org/html/rfc2883)
 
  + Selective Acknowledgement : [Click Here](http://packetlife.net/blog/2010/jun/17/tcp-selective-acknowledgments-sack/)
  
