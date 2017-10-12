@@ -1,7 +1,8 @@
-## Implementation of TCP Forward Acknowlegement (FACK) in ns-3.
+## Implementation of TCP Duplicate Selective Acknowlegement (DSACK) in ns-3.
 
 + Contributors : Siddhartha Chowdhuri, Atul Singh, Aswin Manoj.
 + Instructor   : Mohit P. Tahiliani.
 + Resources    :
 
-      [1] Forward Acknowlegement : Refining TCP Congestion Control by Matthew Mathis and Jamshid Mahdavi.
+      [1] RFC 3708 : Using TCP Duplicate Selective Acknowledgement (DSACKs) and  Stream Control Transmission Protocol (SCTP) Duplicate Transmission Sequence Numbers (TSNs) to Detect Spurious Retransmissions.
+
