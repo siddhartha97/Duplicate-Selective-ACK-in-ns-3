@@ -5,9 +5,10 @@
 
 #### Resources    :
 
- + RFC 2883 : [An Extension to the Selective Acknowledgement (SACK) Option for TCP](https://tools.ietf.org/html/rfc2883)
-
- + Selective Acknowledgement : [Click Here](http://packetlife.net/blog/2010/jun/17/tcp-selective-acknowledgments-sack/)
+ + RFC 2018 : [TCP Selective Acknowledgment Options.](https://tools.ietf.org/html/rfc2018)
+ 
+ + RFC 2883 : [An Extension to the Selective Acknowledgement (SACK) Option for TCP.](https://tools.ietf.org/html/rfc2883)
+ 
  
  
 
