@@ -22,7 +22,7 @@
 #include "ns3/fatal-error.h"
 #include "ns3/log.h"
 #include "tcp-rx-buffer.h"
-
+using namespace std;
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("TcpRxBuffer");
@@ -227,6 +227,115 @@ TcpRxBuffer::Add (Ptr<Packet> p, TcpHeader const& tcph)
     };
   return true;
 }
+
+//changed from bool to int.
+int
+TcpRxBuffer::Add1 (Ptr<Packet> p, TcpHeader const& tcph)
+{
+ NS_LOG_FUNCTION (this << p << tcph);
+
+  uint32_t pktSize = p->GetSize ();
+  SequenceNumber32 headSeq = tcph.GetSequenceNumber ();
+  SequenceNumber32 tailSeq = headSeq + SequenceNumber32 (pktSize);
+  NS_LOG_LOGIC ("Add pkt " << p << " len=" << pktSize << " seq=" << headSeq
+                           << ", when NextRxSeq=" << m_nextRxSeq << ", buffsize=" << m_size);
+
+  // Trim packet to fit Rx window specification
+  if (headSeq < m_nextRxSeq) headSeq = m_nextRxSeq;
+  if (m_data.size ())
+    {
+      SequenceNumber32 maxSeq = m_data.begin ()->first + SequenceNumber32 (m_maxBuffer);
+      if (maxSeq < tailSeq) tailSeq = maxSeq;
+      if (tailSeq < headSeq) headSeq = tailSeq;
+    }
+  // Remove overlapped bytes from packet
+  BufIterator i = m_data.begin ();
+
+  if(m_data.size() != 0)  cout<<"OLLAAAA\n";
+for(i = m_data.begin();i!=m_data.end();i++){
+    cout<<m_data.size()<<endl;
+}
+  // looking for duplicate.
+
+  for(i = m_data.begin(); i != m_data.end(); ++i)
+      {
+         if(headSeq >= i->first and tailSeq <= i->first + SequenceNumber32 (i->second->GetSize ()))
+            return 2;
+          else
+            return 3;
+        }
+
+
+  while (i != m_data.end () && i->first <= tailSeq)
+    {
+      SequenceNumber32 lastByteSeq = i->first + SequenceNumber32 (i->second->GetSize ());
+      if (lastByteSeq > headSeq)
+        {
+          if (i->first > headSeq && lastByteSeq < tailSeq)
+            { // Rare case: Existing packet is embedded fully in the new packet
+              m_size -= i->second->GetSize ();
+              m_data.erase (i++);
+              continue;
+            }
+          if (i->first <= headSeq)
+            { // Incoming head is overlapped
+              headSeq = lastByteSeq;
+            }
+          if (lastByteSeq >= tailSeq)
+            { // Incoming tail is overlapped
+              tailSeq = i->first;
+            }
+        }
+      ++i;
+    }
+  // We now know how much we are going to store, trim the packet
+  if (headSeq >= tailSeq)
+    {
+      NS_LOG_LOGIC ("Nothing to buffer");
+      return 0; // Nothing to buffer anyway
+    }
+  else
+    {
+      uint32_t start = headSeq - tcph.GetSequenceNumber ();
+      uint32_t length = tailSeq - headSeq;
+      p = p->CreateFragment (start, length);
+      NS_ASSERT (length == p->GetSize ());
+    }
+  // Insert packet into buffer
+  NS_ASSERT (m_data.find (headSeq) == m_data.end ()); // Shouldn't be there yet
+  m_data [ headSeq ] = p;
+
+  if (headSeq > m_nextRxSeq)
+    {
+      // Generate a new SACK block
+      UpdateSackList (headSeq, tailSeq);
+    }
+
+  NS_LOG_LOGIC ("Buffered packet of seqno=" << headSeq << " len=" << p->GetSize ());
+  // Update variables
+  m_size += p->GetSize ();      // Occupancy
+  for (i = m_data.begin (); i != m_data.end (); ++i)
+    {
+      if (i->first < m_nextRxSeq)
+        {
+          continue;
+        }
+      else if (i->first > m_nextRxSeq)
+        {
+          break;
+        };
+      m_nextRxSeq = i->first + SequenceNumber32 (i->second->GetSize ());
+      m_availBytes += i->second->GetSize ();
+      ClearSackList (m_nextRxSeq);
+    }
+  NS_LOG_LOGIC ("Updated buffer occupancy=" << m_size << " nextRxSeq=" << m_nextRxSeq);
+  if (m_gotFin && m_nextRxSeq == m_finSeq)
+    { // Account for the FIN packet
+      ++m_nextRxSeq;
+    };
+  return 1;
+}
+
 
 uint32_t
 TcpRxBuffer::GetSackListSize () const

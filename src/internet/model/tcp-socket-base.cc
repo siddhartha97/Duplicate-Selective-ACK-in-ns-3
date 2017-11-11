@@ -53,11 +53,28 @@
 #include "tcp-option-sack.h"
 #include "rtt-estimator.h"
 #include "tcp-congestion-ops.h"
-
+#include <bits/stdc++.h>
 #include <math.h>
 #include <algorithm>
 
+#include "ns3/tcp-option.h"
+#include "ns3/sequence-number.h"
+using namespace std;
+// typedef SequenceNumber<uint32_t, int32_t> SequenceNumber32;
+// pair<SequenceNumber32,SequenceNumber32> dups;
+//  int flag_dsack;
+// SequenceNumber32 first;
+// SequenceNumber32 second;
+
 namespace ns3 {
+
+     typedef std::pair<SequenceNumber32, SequenceNumber32> SackBlock;
+
+    int flag_dsack;
+    SequenceNumber32 f1;
+    SequenceNumber32 s2;
+   //  SequenceNumber32 first;
+   // SequenceNumber32 second;
 
 NS_LOG_COMPONENT_DEFINE ("TcpSocketBase");
 
@@ -96,6 +113,12 @@ TcpSocketBase::GetTypeId (void)
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpSocketBase::m_winScalingEnabled),
                    MakeBooleanChecker ())
+                   //changed
+    .AddAttribute ("DSACK", "Enable or disable DSACK option",
+                  BooleanValue (false),
+                  MakeBooleanAccessor (&TcpSocketBase::m_dsackEnabled),
+                  MakeBooleanChecker ())
+
     .AddAttribute ("Sack", "Enable or disable Sack option",
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpSocketBase::m_sackEnabled),
@@ -1887,7 +1910,7 @@ TcpSocketBase::ProcessAck (const SequenceNumber32 &ackNumber, bool scoreboardUpd
               m_tcb->m_cWnd = std::min (m_tcb->m_ssThresh.Get (),
                                     BytesInFlight () + m_tcb->m_segmentSize);
               NS_LOG_DEBUG ("Leaving Fast Recovery; BytesInFlight() = " <<
-                            BytesInFlight () << "; cWnd = " << m_tcb->m_cWnd);
+                            BytesInFlight () << "cWnd =  "<< m_tcb->m_cWnd);
             }
           else
             {
@@ -2953,7 +2976,7 @@ TcpSocketBase::BytesInFlight () const
   else
     {
       // TcpTxBuffer::BytesInFlight assumes SACK is enabled, so we calculate
-      // according to RFC 4898 page 23 PipeSize equation above  
+      // according to RFC 4898 page 23 PipeSize equation above
       uint32_t flightSize = m_tcb->m_nextTxSequence.Get () - m_txBuffer->HeadSequence ();
       uint32_t duplicatedSize;
       uint32_t retransOut = m_txBuffer->GetRetransmitsCount ();
@@ -3056,13 +3079,41 @@ TcpSocketBase::ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader)
   NS_LOG_DEBUG ("Data segment, seq=" << tcpHeader.GetSequenceNumber () <<
                 " pkt size=" << p->GetSize () );
 
-  // Put into Rx buffer
-  SequenceNumber32 expectedSeq = m_rxBuffer->NextRxSequence ();
-  if (!m_rxBuffer->Add (p, tcpHeader))
+
+    //switch
+int i;
+SequenceNumber32 expectedSeq = m_rxBuffer->NextRxSequence ();
+    if(m_dsackEnabled)
+    {    i = m_rxBuffer->Add1(p,tcpHeader);
+
+
+    // Put into Rx buffer
+
+    if (!i) //changed !m_rxBuffer->Add (p, tcpHeader)
+      { // Insert failed: No data or RX buffer full
+        SendEmptyPacket (TcpHeader::ACK);
+        return;
+      }
+      //changed
+    if(i == 2 or (i == 3 and m_rxBuffer->NextRxSequence() > tcpHeader.GetSequenceNumber())) {
+      flag_dsack = 1;
+      uint32_t pktSize = p->GetSize ();
+      SequenceNumber32 headSeq = tcpHeader.GetSequenceNumber ();
+      SequenceNumber32 tailSeq = headSeq + SequenceNumber32 (pktSize);
+
+      f1 = headSeq;
+      s2 = tailSeq;
+      cout<<f1<<s2;
+    }
+}
+else {
+    if(!m_rxBuffer->Add1(p,tcpHeader))
     { // Insert failed: No data or RX buffer full
       SendEmptyPacket (TcpHeader::ACK);
       return;
     }
+
+}
   // Notify app to receive if necessary
   if (expectedSeq < m_rxBuffer->NextRxSequence ())
     { // NextRxSeq advanced, we have something to send to the app
@@ -3224,7 +3275,7 @@ TcpSocketBase::ReTxTimeout ()
       return;
     }
 
-  uint32_t inFlightBeforeRto = BytesInFlight();  
+  uint32_t inFlightBeforeRto = BytesInFlight();
 
   // From RFC 6675, Section 5.1
   // [RFC2018] suggests that a TCP sender SHOULD expunge the SACK
@@ -3234,7 +3285,7 @@ TcpSocketBase::ReTxTimeout ()
   // information in determining which data to retransmit."
   if (!m_sackEnabled)
     {
-      // When SACK is not enabled, we start fresh after a RTO by putting 
+      // When SACK is not enabled, we start fresh after a RTO by putting
       // all previously sent but unacked items on the sent list.
       m_txBuffer->ResetSentList (0);
     }
@@ -3448,7 +3499,7 @@ TcpSocketBase::TimeWait ()
   CancelAllTimers ();
   if (!m_closeNotified)
     {
-      // Technically the connection is not fully closed, but we notify now 
+      // Technically the connection is not fully closed, but we notify now
       // because an implementation (real socket) would behave as if closed.
       // Notify normal close when entering TIME_WAIT or leaving LAST_ACK.
       NotifyNormalClose ();
@@ -3741,9 +3792,18 @@ TcpSocketBase::AddOptionSack (TcpHeader& header)
       NS_LOG_LOGIC ("No space available or sack list empty, not adding sack blocks");
       return;
     }
+ Ptr<TcpOptionSack> option = CreateObject<TcpOptionSack> ();
+
+    if(flag_dsack == 1){
+SackBlock s;
+        s.first = f1;
+        s.second = s2;
+        option->AddSackBlock(s);
+        allowedSackBlocks--;
+    }
 
   // Append the allowed number of SACK blocks
-  Ptr<TcpOptionSack> option = CreateObject<TcpOptionSack> ();
+
   TcpOptionSack::SackList::iterator i;
   for (i = sackList.begin (); allowedSackBlocks > 0 && i != sackList.end (); ++i)
     {

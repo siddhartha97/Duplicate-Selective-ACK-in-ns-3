@@ -47,6 +47,8 @@ class TcpL4Protocol;
 class TcpHeader;
 class TcpCongestionOps;
 
+ 
+
 /**
  * \ingroup tcp
  *
@@ -164,7 +166,7 @@ public:
   TracedValue<SequenceNumber32> m_highTxMark; //!< Highest seqno ever sent, regardless of ReTx
   TracedValue<SequenceNumber32> m_nextTxSequence; //!< Next seqnum to be sent (SND.NXT), ReTx pushes it back
 
-  uint32_t               m_rcvTimestampValue;     //!< Receiver Timestamp value 
+  uint32_t               m_rcvTimestampValue;     //!< Receiver Timestamp value
   uint32_t               m_rcvTimestampEchoReply; //!< Sender Timestamp echoed by the receiver
 
   /**
@@ -1129,6 +1131,8 @@ protected:
   uint32_t                      m_bytesAckedNotProcessed;  //!< Bytes acked, but not processed
   TracedValue<uint32_t>         m_bytesInFlight; //!< Bytes in flight
 
+//changed added m_dsack
+ bool m_dsackEnabled;
   // Options
   bool    m_sackEnabled;       //!< RFC SACK option enabled
   bool    m_winScalingEnabled; //!< Window Scale option enabled (RFC 7323)
