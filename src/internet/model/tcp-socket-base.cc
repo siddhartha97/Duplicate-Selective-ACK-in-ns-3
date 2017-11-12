@@ -2499,7 +2499,7 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
     }
 
   m_txTrace (p, header, this);
-
+if((SequenceNumber32)1500 >= header.GetAckNumber()){
   if (m_endPoint != 0)
     {
       m_tcp->SendPacket (p, header, m_endPoint->GetLocalAddress (),
@@ -2510,7 +2510,7 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
       m_tcp->SendPacket (p, header, m_endPoint6->GetLocalAddress (),
                          m_endPoint6->GetPeerAddress (), m_boundnetdevice);
     }
-
+}
 
   if (m_retxEvent.IsExpired () && (hasSyn || hasFin) && !isAck )
     { // Retransmit SYN / SYN+ACK / FIN / FIN+ACK to guard against lost
@@ -3086,6 +3086,7 @@ SequenceNumber32 expectedSeq = m_rxBuffer->NextRxSequence ();
     if(m_dsackEnabled)
     {    i = m_rxBuffer->Add1(p,tcpHeader);
 
+cout<<"inside"<<endl;
 
     // Put into Rx buffer
 
@@ -3107,7 +3108,8 @@ SequenceNumber32 expectedSeq = m_rxBuffer->NextRxSequence ();
     }
 }
 else {
-    if(!m_rxBuffer->Add1(p,tcpHeader))
+    cout<<"outside"<<endl;
+    if(!m_rxBuffer->Add(p,tcpHeader))
     { // Insert failed: No data or RX buffer full
       SendEmptyPacket (TcpHeader::ACK);
       return;
