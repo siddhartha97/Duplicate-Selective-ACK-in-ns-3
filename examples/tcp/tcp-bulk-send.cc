@@ -42,7 +42,7 @@ main (int argc, char *argv[])
 {
 
   bool tracing = false;
-  uint32_t maxBytes = 0;
+  uint32_t maxBytes = 3000;
 
 //
 // Allow the user to override any of the defaults at

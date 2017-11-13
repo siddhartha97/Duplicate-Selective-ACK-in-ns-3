@@ -180,6 +180,14 @@ TcpRxBuffer::Add (Ptr<Packet> p, TcpHeader const& tcph)
         }
       ++i;
     }
+i = m_data.begin ();
+
+while (i != m_data.end() ){
+    SequenceNumber32 lastByteSeq = i->first + SequenceNumber32 (i->second->GetSize ());
+    cout<<i->first<<" *  "<<lastByteSeq<<endl;
+    i++;
+}
+
   // We now know how much we are going to store, trim the packet
   if (headSeq >= tailSeq)
     {
@@ -251,20 +259,18 @@ TcpRxBuffer::Add1 (Ptr<Packet> p, TcpHeader const& tcph)
   // Remove overlapped bytes from packet
   BufIterator i = m_data.begin ();
 
-  if(m_data.size() != 0)  cout<<"OLLAAAA\n";
-for(i = m_data.begin();i!=m_data.end();i++){
-    cout<<m_data.size()<<endl;
-}
-  // looking for duplicate.
-
-  for(i = m_data.begin(); i != m_data.end(); ++i)
+  for(i = m_data.begin();i != m_data.end (); ++i)
       {
-         if(headSeq >= i->first and tailSeq <= i->first + SequenceNumber32 (i->second->GetSize ()))
+         if(headSeq >= i->first and tailSeq <= i->first + SequenceNumber32 (i->second->GetSize ())){
+            //  cout<<"returning 2"<<endl;
             return 2;
-          else
-            return 3;
         }
-
+        //   else{
+        //       cout<<"returning 3"<<endl;
+        //     return 3;
+        // }
+        }
+i = m_data.begin();
 
   while (i != m_data.end () && i->first <= tailSeq)
     {
@@ -288,6 +294,16 @@ for(i = m_data.begin();i!=m_data.end();i++){
         }
       ++i;
     }
+
+
+        // i = m_data.begin ();
+        //
+        // while (i != m_data.end() ){
+        //     SequenceNumber32 lastByteSeq = i->first + SequenceNumber32 (i->second->GetSize ());
+        //     cout<<i->first<<" *  "<<lastByteSeq<<endl;
+        //     i++;
+        // }
+
   // We now know how much we are going to store, trim the packet
   if (headSeq >= tailSeq)
     {
@@ -310,6 +326,7 @@ for(i = m_data.begin();i!=m_data.end();i++){
       // Generate a new SACK block
       UpdateSackList (headSeq, tailSeq);
     }
+
 
   NS_LOG_LOGIC ("Buffered packet of seqno=" << headSeq << " len=" << p->GetSize ());
   // Update variables

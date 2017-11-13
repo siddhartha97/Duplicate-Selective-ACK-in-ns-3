@@ -70,7 +70,7 @@ namespace ns3 {
 
      typedef std::pair<SequenceNumber32, SequenceNumber32> SackBlock;
 
-    int flag_dsack;
+    int flag_dsack = 0;
     SequenceNumber32 f1;
     SequenceNumber32 s2;
    //  SequenceNumber32 first;
@@ -343,7 +343,7 @@ TcpSocketBase::TcpSocketBase (void)
     m_highRxAckMark (0),
     m_bytesAckedNotProcessed (0),
     m_bytesInFlight (0),
-    m_sackEnabled (false),
+    m_sackEnabled (true),
     m_winScalingEnabled (false),
     m_rcvWindShift (0),
     m_sndWindShift (0),
@@ -421,7 +421,8 @@ TcpSocketBase::TcpSocketBase (const TcpSocketBase& sock)
     m_highRxAckMark (sock.m_highRxAckMark),
     m_bytesAckedNotProcessed (sock.m_bytesAckedNotProcessed),
     m_bytesInFlight (sock.m_bytesInFlight),
-    m_sackEnabled (sock.m_sackEnabled),
+    //m_sackEnabled (sock.m_sackEnabled),
+    m_sackEnabled (true),
     m_winScalingEnabled (sock.m_winScalingEnabled),
     m_rcvWindShift (sock.m_rcvWindShift),
     m_sndWindShift (sock.m_sndWindShift),
@@ -1230,6 +1231,9 @@ TcpSocketBase::DoForwardUp (Ptr<Packet> packet, const Address &fromAddress,
   TcpHeader tcpHeader;
   uint32_t bytesRemoved = packet->RemoveHeader (tcpHeader);
   SequenceNumber32 seq = tcpHeader.GetSequenceNumber ();
+
+
+
   if (bytesRemoved == 0 || bytesRemoved > 60)
     {
       NS_LOG_ERROR ("Bytes removed: " << bytesRemoved << " invalid");
@@ -1237,6 +1241,7 @@ TcpSocketBase::DoForwardUp (Ptr<Packet> packet, const Address &fromAddress,
     }
   else if (packet->GetSize () > 0 && OutOfRange (seq, seq + packet->GetSize ()))
     {
+
       // Discard fully out of range data packets
       NS_LOG_WARN ("At state " << TcpStateName[m_state] <<
                    " received packet of seq [" << seq <<
@@ -1338,12 +1343,15 @@ TcpSocketBase::DoForwardUp (Ptr<Packet> packet, const Address &fromAddress,
       m_persistEvent = Simulator::Schedule (m_persistTimeout, &TcpSocketBase::PersistTimeout, this);
       NS_ASSERT (m_persistTimeout == Simulator::GetDelayLeft (m_persistEvent));
     }
+// cout<<"the estd segment is "<<seq<<endl;
+
 
   // TCP state machine code in different process functions
   // C.f.: tcp_rcv_state_process() in tcp_input.c in Linux kernel
   switch (m_state)
     {
     case ESTABLISHED:
+
       ProcessEstablished (packet, tcpHeader);
       break;
     case LISTEN:
@@ -1406,7 +1414,7 @@ void
 TcpSocketBase::ProcessEstablished (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 {
   NS_LOG_FUNCTION (this << tcpHeader);
-
+// cout<<"the estd segments are "<<tcpHeader.GetSequenceNumber()<<" "<<tcpHeader.GetSequenceNumber()+SequenceNumber32 (packet->GetSize())<<endl;
   // Extract the flags. PSH and URG are not honoured.
   uint8_t tcpflags = tcpHeader.GetFlags () & ~(TcpHeader::PSH | TcpHeader::URG);
 
@@ -2357,7 +2365,8 @@ TcpSocketBase::Destroy6 (void)
                 (Simulator::Now () + Simulator::GetDelayLeft (m_retxEvent)).GetSeconds ());
   CancelAllTimers ();
 }
-
+//remove this asap
+// bool trial = true;
 /* Send an empty packet with specified TCP flags */
 void
 TcpSocketBase::SendEmptyPacket (uint8_t flags)
@@ -2451,9 +2460,10 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
         { // The window scaling option is set only on SYN packets
           AddOptionWScale (header);
         }
-
+cout<<"checking "<<m_sackEnabled<<endl;
       if (m_sackEnabled)
         {
+            cout<<"sack is enabled"<<endl;
           AddOptionSackPermitted (header);
         }
 
@@ -2499,7 +2509,12 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
     }
 
   m_txTrace (p, header, this);
-if((SequenceNumber32)1500 >= header.GetAckNumber()){
+  // if(header.GetAckNumber() <=(SequenceNumber32) 2000 or (header.GetAckNumber() >= (SequenceNumber32)4000)  )
+// if(header.GetAckNumber() ==(SequenceNumber32)1609)
+    // trial = !trial;
+// if(trial)
+
+    cout<<"ack is "<<header.GetAckNumber()<<endl;
   if (m_endPoint != 0)
     {
       m_tcp->SendPacket (p, header, m_endPoint->GetLocalAddress (),
@@ -2510,7 +2525,7 @@ if((SequenceNumber32)1500 >= header.GetAckNumber()){
       m_tcp->SendPacket (p, header, m_endPoint6->GetLocalAddress (),
                          m_endPoint6->GetPeerAddress (), m_boundnetdevice);
     }
-}
+
 
   if (m_retxEvent.IsExpired () && (hasSyn || hasFin) && !isAck )
     { // Retransmit SYN / SYN+ACK / FIN / FIN+ACK to guard against lost
@@ -2670,6 +2685,7 @@ TcpSocketBase::ConnectionSucceeded ()
 
 /* Extract at most maxSize bytes from the TxBuffer at sequence seq, add the
     TCP header, and send to TcpL4Protocol */
+    bool attacked = true;
 uint32_t
 TcpSocketBase::SendDataPacket (SequenceNumber32 seq, uint32_t maxSize, bool withAck)
 {
@@ -2750,6 +2766,12 @@ TcpSocketBase::SendDataPacket (SequenceNumber32 seq, uint32_t maxSize, bool with
     }
   TcpHeader header;
   header.SetFlags (flags);
+
+if(seq == (SequenceNumber32) 7501 and attacked){
+    seq = (SequenceNumber32) 6501;
+    attacked = false;
+}
+
   header.SetSequenceNumber (seq);
   header.SetAckNumber (m_rxBuffer->NextRxSequence ());
   if (m_endPoint)
@@ -3079,16 +3101,16 @@ TcpSocketBase::ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader)
   NS_LOG_DEBUG ("Data segment, seq=" << tcpHeader.GetSequenceNumber () <<
                 " pkt size=" << p->GetSize () );
 
-
+cout<<"sequence no "<<tcpHeader.GetSequenceNumber()<<" "<<(tcpHeader.GetSequenceNumber()+SequenceNumber32 (p->GetSize()))<<endl;
     //switch
 int i;
 SequenceNumber32 expectedSeq = m_rxBuffer->NextRxSequence ();
-    if(m_dsackEnabled)
+
+    // if(m_dsackEnabled)
+    if(1)
     {    i = m_rxBuffer->Add1(p,tcpHeader);
 
-cout<<"inside"<<endl;
-
-    // Put into Rx buffer
+        // Put into Rx buffer
 
     if (!i) //changed !m_rxBuffer->Add (p, tcpHeader)
       { // Insert failed: No data or RX buffer full
@@ -3096,7 +3118,7 @@ cout<<"inside"<<endl;
         return;
       }
       //changed
-    if(i == 2 or (i == 3 and m_rxBuffer->NextRxSequence() > tcpHeader.GetSequenceNumber())) {
+    if(i == 2 ) {
       flag_dsack = 1;
       uint32_t pktSize = p->GetSize ();
       SequenceNumber32 headSeq = tcpHeader.GetSequenceNumber ();
@@ -3104,11 +3126,11 @@ cout<<"inside"<<endl;
 
       f1 = headSeq;
       s2 = tailSeq;
-      cout<<f1<<s2;
+     cout<<"Duplicate Packet "<<f1<<"  ***  "<<s2;
     }
 }
 else {
-    cout<<"outside"<<endl;
+    // cout<<"outside"<<endl;
     if(!m_rxBuffer->Add(p,tcpHeader))
     { // Insert failed: No data or RX buffer full
       SendEmptyPacket (TcpHeader::ACK);
@@ -3468,6 +3490,8 @@ TcpSocketBase::DoRetransmit ()
   m_tcb->m_nextTxSequence = m_txBuffer->HeadSequence ();
   uint32_t sz = SendDataPacket (m_txBuffer->HeadSequence (), m_tcb->m_segmentSize, true);
 
+cout<<"Retransmit "<<m_txBuffer->HeadSequence()<<endl;
+
   // In case of RTO, advance m_tcb->m_nextTxSequence
   if (oldSequence == m_tcb->m_nextTxSequence.Get ())
     {
@@ -3783,7 +3807,7 @@ void
 TcpSocketBase::AddOptionSack (TcpHeader& header)
 {
   NS_LOG_FUNCTION (this << header);
-
+// cout<<"inside addoptionsack "<<endl;
   // Calculate the number of SACK blocks allowed in this packet
   uint8_t optionLenAvail = header.GetMaxOptionLength () - header.GetOptionLength ();
   uint8_t allowedSackBlocks = (optionLenAvail - 2) / 8;
@@ -3800,8 +3824,10 @@ TcpSocketBase::AddOptionSack (TcpHeader& header)
 SackBlock s;
         s.first = f1;
         s.second = s2;
+cout<<"in addoption with "<<s.first<<" "<<s.second<<endl;
         option->AddSackBlock(s);
         allowedSackBlocks--;
+        flag_dsack = 0;
     }
 
   // Append the allowed number of SACK blocks
@@ -3810,9 +3836,16 @@ SackBlock s;
   for (i = sackList.begin (); allowedSackBlocks > 0 && i != sackList.end (); ++i)
     {
       NS_LOG_LOGIC ("Left edge of the block: " << (*i).first << " Right edge of the block: " << (*i).second);
+
       option->AddSackBlock (*i);
       allowedSackBlocks--;
     }
+
+//printing header sack
+TcpOptionSack::SackList temp = option.GetSackList();
+for(i= temp.begin(); i != sackList.end (); ++i)
+ cout<<"header stuff"<<(*i).first<<" "<<(*i).second<<endl;
+
 
   header.AppendOption (option);
   NS_LOG_INFO (m_node->GetId () << " Add option SACK");
