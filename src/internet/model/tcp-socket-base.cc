@@ -115,10 +115,9 @@ TcpSocketBase::GetTypeId (void)
                    MakeBooleanChecker ())
                    //changed
     .AddAttribute ("DSACK", "Enable or disable DSACK option",
-                  BooleanValue (false),
+                  BooleanValue (true),
                   MakeBooleanAccessor (&TcpSocketBase::m_dsackEnabled),
                   MakeBooleanChecker ())
-
     .AddAttribute ("Sack", "Enable or disable Sack option",
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpSocketBase::m_sackEnabled),
@@ -343,6 +342,7 @@ TcpSocketBase::TcpSocketBase (void)
     m_highRxAckMark (0),
     m_bytesAckedNotProcessed (0),
     m_bytesInFlight (0),
+    m_dsackEnabled(true),
     m_sackEnabled (true),
     m_winScalingEnabled (false),
     m_rcvWindShift (0),
@@ -422,6 +422,7 @@ TcpSocketBase::TcpSocketBase (const TcpSocketBase& sock)
     m_bytesAckedNotProcessed (sock.m_bytesAckedNotProcessed),
     m_bytesInFlight (sock.m_bytesInFlight),
     //m_sackEnabled (sock.m_sackEnabled),
+    m_dsackEnabled(true),
     m_sackEnabled (true),
     m_winScalingEnabled (sock.m_winScalingEnabled),
     m_rcvWindShift (sock.m_rcvWindShift),
@@ -2514,7 +2515,7 @@ cout<<"checking "<<m_sackEnabled<<endl;
     // trial = !trial;
 // if(trial)
 
-    cout<<"ack is "<<header.GetAckNumber()<<endl;
+    cout<<"ack is "<<header.GetAckNumber()<<endl<<endl;
   if (m_endPoint != 0)
     {
       m_tcp->SendPacket (p, header, m_endPoint->GetLocalAddress (),
@@ -2685,7 +2686,7 @@ TcpSocketBase::ConnectionSucceeded ()
 
 /* Extract at most maxSize bytes from the TxBuffer at sequence seq, add the
     TCP header, and send to TcpL4Protocol */
-    bool attacked = true;
+    bool attacked = true,attacked1=true;
 uint32_t
 TcpSocketBase::SendDataPacket (SequenceNumber32 seq, uint32_t maxSize, bool withAck)
 {
@@ -2769,8 +2770,13 @@ TcpSocketBase::SendDataPacket (SequenceNumber32 seq, uint32_t maxSize, bool with
 
 if(seq == (SequenceNumber32) 7501 and attacked){
     seq = (SequenceNumber32) 6501;
-    attacked = false;
+    attacked=false;
 }
+if(seq == (SequenceNumber32) 8001 and attacked1){
+    seq = (SequenceNumber32) 6001;
+    attacked1=false;
+}
+
 
   header.SetSequenceNumber (seq);
   header.SetAckNumber (m_rxBuffer->NextRxSequence ());
@@ -3107,7 +3113,7 @@ int i;
 SequenceNumber32 expectedSeq = m_rxBuffer->NextRxSequence ();
 
     // if(m_dsackEnabled)
-    if(1)
+    if(m_dsackEnabled)
     {    i = m_rxBuffer->Add1(p,tcpHeader);
 
         // Put into Rx buffer
@@ -3126,7 +3132,7 @@ SequenceNumber32 expectedSeq = m_rxBuffer->NextRxSequence ();
 
       f1 = headSeq;
       s2 = tailSeq;
-     cout<<"Duplicate Packet "<<f1<<"  ***  "<<s2;
+     cout<<"Duplicate Packet "<<f1<<"  ***  "<<s2<<"\n"<<endl;
     }
 }
 else {
@@ -3490,7 +3496,7 @@ TcpSocketBase::DoRetransmit ()
   m_tcb->m_nextTxSequence = m_txBuffer->HeadSequence ();
   uint32_t sz = SendDataPacket (m_txBuffer->HeadSequence (), m_tcb->m_segmentSize, true);
 
-cout<<"Retransmit "<<m_txBuffer->HeadSequence()<<endl;
+cout<<"\nRetransmit "<<m_txBuffer->HeadSequence()<<endl<<endl;
 
   // In case of RTO, advance m_tcb->m_nextTxSequence
   if (oldSequence == m_tcb->m_nextTxSequence.Get ())
@@ -3824,7 +3830,7 @@ TcpSocketBase::AddOptionSack (TcpHeader& header)
 SackBlock s;
         s.first = f1;
         s.second = s2;
-cout<<"in addoption with "<<s.first<<" "<<s.second<<endl;
+// cout<<"in addoption with "<<s.first<<" "<<s.second<<endl;
         option->AddSackBlock(s);
         allowedSackBlocks--;
         flag_dsack = 0;
@@ -3836,16 +3842,17 @@ cout<<"in addoption with "<<s.first<<" "<<s.second<<endl;
   for (i = sackList.begin (); allowedSackBlocks > 0 && i != sackList.end (); ++i)
     {
       NS_LOG_LOGIC ("Left edge of the block: " << (*i).first << " Right edge of the block: " << (*i).second);
-
+//cout<<"header stuff"<<(*i).first<<" "<<(*i).second<<endl;
       option->AddSackBlock (*i);
       allowedSackBlocks--;
     }
 
 //printing header sack
-TcpOptionSack::SackList temp = option.GetSackList();
-for(i= temp.begin(); i != sackList.end (); ++i)
- cout<<"header stuff"<<(*i).first<<" "<<(*i).second<<endl;
+TcpOptionSack::SackList temp = option->GetSackList ();
 
+for(i= temp.begin(); i != temp.end (); ++i)
+    cout<<"Sack Block  "<<(*i).first<<" "<<(*i).second<<endl;
+cout<<"no of sack blocks  :  "<<option->GetNumSackBlocks()<<endl<<endl;
 
   header.AppendOption (option);
   NS_LOG_INFO (m_node->GetId () << " Add option SACK");
