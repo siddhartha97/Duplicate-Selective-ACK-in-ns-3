@@ -3109,39 +3109,26 @@ TcpSocketBase::ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader)
 
 cout<<"sequence no "<<tcpHeader.GetSequenceNumber()<<" "<<(tcpHeader.GetSequenceNumber()+SequenceNumber32 (p->GetSize()))<<endl;
     //switch
-int i;
+// int i;
 SequenceNumber32 expectedSeq = m_rxBuffer->NextRxSequence ();
 
-    // if(m_dsackEnabled)
-    if(m_dsackEnabled)
-    {    i = m_rxBuffer->Add1(p,tcpHeader);
+    if((m_dsackEnabled)&&(m_rxBuffer->CheckDupPacket(p,tcpHeader))){
+            flag_dsack = 1;
+            uint32_t pktSize = p->GetSize ();
+            SequenceNumber32 headSeq = tcpHeader.GetSequenceNumber ();
+            SequenceNumber32 tailSeq = headSeq + SequenceNumber32 (pktSize);
 
-        // Put into Rx buffer
+            f1 = headSeq;
+            s2 = tailSeq;
+           cout<<"Duplicate Packet "<<f1<<"  ***  "<<s2<<"\n"<<endl;
+        }
 
-    if (!i) //changed !m_rxBuffer->Add (p, tcpHeader)
-      { // Insert failed: No data or RX buffer full
-        SendEmptyPacket (TcpHeader::ACK);
-        return;
-      }
-      //changed
-    if(i == 2 ) {
-      flag_dsack = 1;
-      uint32_t pktSize = p->GetSize ();
-      SequenceNumber32 headSeq = tcpHeader.GetSequenceNumber ();
-      SequenceNumber32 tailSeq = headSeq + SequenceNumber32 (pktSize);
 
-      f1 = headSeq;
-      s2 = tailSeq;
-     cout<<"Duplicate Packet "<<f1<<"  ***  "<<s2<<"\n"<<endl;
-    }
-}
-else {
-    // cout<<"outside"<<endl;
+// Put into Rx buffer
     if(!m_rxBuffer->Add(p,tcpHeader))
     { // Insert failed: No data or RX buffer full
       SendEmptyPacket (TcpHeader::ACK);
       return;
-    }
 
 }
   // Notify app to receive if necessary
