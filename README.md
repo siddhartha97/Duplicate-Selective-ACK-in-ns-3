@@ -1,7 +1,15 @@
 ## Implementation of TCP Duplicate Selective Acknowlegement (DSACK) in ns-3.
 
+## Course Code : CO300 , CO302
+
+## Assignment : # 11
+
 + Contributors : Siddhartha Chowdhuri, Atul Singh, Aswin Manoj.
 + Instructor   : Mohit P. Tahiliani.
+
+#### Overview :
+
++ Duplicate Selective Acknowledgement (DSACK) , an extension of SACK is used to inform sender about the duplicate packets sent. SACK is already implemented in ns-3.This repository provides an implementation of DSACK in ns-3.
 
 #### About D-SACK :
 
@@ -16,6 +24,8 @@
  + RFC 2018 : [TCP Selective Acknowledgment Options.](https://tools.ietf.org/html/rfc2018)
  
  + RFC 2883 : [An Extension to the Selective Acknowledgement (SACK) Option for TCP.](https://tools.ietf.org/html/rfc2883)
+ 
+ +  http://www.nsnam.org/
  
  
  
