@@ -149,7 +149,7 @@ public:
    */
   bool Add (Ptr<Packet> p, TcpHeader const& tcph);
 
-   int Add1(Ptr<Packet> p, TcpHeader const& tcph);
+   bool CheckDupPacket(Ptr<Packet> p, TcpHeader const& tcph);
 
   /**
    * Extract data from the head of the buffer as indicated by nextRxSeq.
